@@ -154,6 +154,66 @@ use hotelDallasprod;
 
 -- Extração da Tabela Clientes para a tabela DimClientes DW
 insert into hoteldallasdw.DimClientes(id_cliente, nome, idade, pais_origem)
-select id_cliente, nome, idade, pais from hoteldallasprod.clientes;
+select id_cliente, nome, idade, pais from hoteldallasprod.Clientes;
 
 select * from dimclientes;
+
+-- Extração da tabela reservas para tabela DimReserva DW
+insert into dimreserva (Id_Reserva, Data_Entrada, Data_saida, numero_noites)
+select Id_Reserva, Data_Entrada, Data_Saida, Numero_noites from hoteldallasprod.Reservas;
+
+select * from dimreserva;
+
+-- Extração da tabela Quartos para DimQuarto DW( Id_Quarto, Tipo_Quarto, Andar, preço_diaria )
+INSERT INTO DimQuarto (ID_Quarto, Tipo_Quarto, Andar, Preco_Diaria)
+select ID_Quarto, Tipo_Quarto, Andar, Preco_Diaria from hoteldallasprod.Quartos;
+
+select * from dimQuarto;
+
+-- Populando DimTempo
+
+select * from dimTempo;
+Insert into DimTempo (Id_Tempo, Data, Ano, Mes, Trimestre, Dia_Semana)
+select
+	row_number() over (order by Data) as Id_Tempo,
+    Data,
+    Year(Data) as Ano,
+    Month(Data) as Mes,
+    Quarter(Data) as Trimestre,
+    dayname(Data) as Dia_Semana
+from (select distinct Data from hoteldallasprod.oucupacoes) as T;
+
+select * from dimTempo;
+
+select * from hoteldallasprod.oucupacoes;
+
+-- Extração dos dados da tabela Oucupação para a tabela FatoOucupacao DW
+select * from fatooucupacao;
+
+insert into fatooucupacao (Id_Ocupacao, id_cliente, id_reserva, id_quarto, id_tempo, id_servico, quantidade, valor_total)
+select
+	oucupacoes.id_oucupacao,
+    oucupacoes.id_cliente,
+    oucupacoes.id_reserva,
+    oucupacoes.id_Quarto,
+    T.Id_tempo,
+    oucupacoes.id_servico,
+    oucupacoes.quantidade,
+    oucupacoes.Valor_Total
+    from hoteldallasprod.oucupacoes
+    join dimtempo as T on T.Data=oucupacoes.Data;
+    
+select * from fatoOucupacao;
+
+-- Exemplo 1: Taxa de Ocupação por Mês
+select DimTempo.mes, count(fatooucupacao.id_oucupacao) as Oucupacao
+from fatoucupacao
+join dimtempo on fatooucupacao.id_tempo=dimtempo.id_tempo;
+
+-- Exemplo 2: Faturamento Total por Tipo de Quarto
+select DimQuarto.TipoQuarto, SUM(FatoOucupacao.Valor_Total) as Faturamento_Total from FatoOucupacao join DimQuarto on FatoOucupacao.ID_Quarto = DimQuarto.ID_Quarto 
+group by DimQuarto.Tipo_Quarto;
+
+-- Exemplo 3: Serviços mais utilizados pelos hóspedes
+select DimServico.Nome_Servico, count(FatoOucupacao.ID_Oucupacao) as Utilizacoes from FatoOucupacao join DimServico on FatoOucupacao.ID_Servico = DimServico.ID_Servico
+group by DimServico.Nome_Servico;
